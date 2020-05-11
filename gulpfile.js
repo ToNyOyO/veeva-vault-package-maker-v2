@@ -1,0 +1,712 @@
+/******************************************************************************************************
+ *
+ * For any of this to work you need to create a config.json in the project root
+ * Add an empty object to the file like so... {}
+ *
+ * Then run "gulp setup" to pre-generate the required fields
+ *
+ * This default json will be used to generate the csv file for Vault using "gulp vaultcsv"
+ *
+ * */
+
+//@ToDo: possibly import the menu from a file? https://github.com/reinerBa/gulp-tag-content-replace
+
+const gulp = require('gulp');
+const fs = require('fs');
+const glob = require("glob");
+const path = require('path');
+const jsonfile = require('jsonfile'); // do stuff to json files
+const write = require('write'); // write to file
+const rename = require('gulp-rename'); // rename a file in stream
+const less = require('gulp-less'); // combine LESS and export as CSS
+const sourcemaps = require('gulp-sourcemaps'); // create sourcemaps for css
+const cleanCSS = require('gulp-clean-css'); // minify CSS
+const uglify = require('gulp-uglify'); // minify JS
+const zip = require('gulp-zip'); // make a ZIP
+const rimraf = require('rimraf'); // delete a folder that contains files
+const replace = require('gulp-replace'); // string replace in pipe
+const inject = require('gulp-inject-string'); // append/prepend/wrap/before/after/beforeEach/afterEach/replace
+const imageResize = require('gulp-image-resize');
+const clean = require('gulp-clean'); // delete files/folders
+
+const htmlFiles = glob.sync('./source/*.html');
+let config = {};
+
+try {
+    config = require('./config.json');
+} catch (ex) {
+
+    (async () => {
+        await write('./config.json', "{}");
+    })();
+
+    console.log("\x1b[31m%s\x1b[0m", "\r\n>> Hey! You need to run 'gulp setup' then enter the Veeva required data in ./config.json\r\n");
+}
+
+function defaultTask(cb) {
+    if ('presentationName' in config) {
+        gulp.watch([
+            './source/shared/css/**/*.less',
+            './source/shared/js/*.js',
+            '!./source/shared/js/*.min.js'
+        ], build).on('end', function() {console.log('test')});
+    }
+
+    cb();
+}
+
+/**********************************************************************************************************
+ * setup the basic project structure
+ *
+ *    > gulp setup --project "project name"
+ */
+function setup(cb) {
+
+    // copy config file
+    gulp.src('./templates/template-config.json')
+        .pipe(rename('config.json'))
+        .pipe(gulp.dest('./'));
+
+    // copy keymessages config file
+    gulp.src('./templates/template-keymessages.json')
+        .pipe(rename('keymessages.json'))
+        .pipe(gulp.dest('./'));
+
+    // copy .gitignore file
+    gulp.src('./templates/.gitignore')
+        .pipe(gulp.dest('./'));
+
+    // copy shared folder structure
+    gulp.src(['./templates/shared/**', '!./templates/shared/less/keymessages/less-template-file.less'])
+        .pipe(gulp.dest('./source/shared'));
+
+    // create previews folder
+    gulp.src('*.*', {read: false})
+        .pipe(gulp.dest('./source/previews'));
+
+    // create build folder
+    gulp.src('*.*', {read: false})
+        .pipe(gulp.dest('./build'));
+
+    // create dist folder
+    gulp.src('*.*', {read: false})
+        .pipe(gulp.dest('./dist'));
+
+    cb();
+}
+
+
+/**********************************************************************************************************
+ * add a new key message to the project using...
+ *
+ *    > gulp keymessage --new "key message name"
+ *
+ *  Does not check for existing files!
+ */
+function keymessagev2(cb) {
+
+    let error = false;
+
+    if (!('presentationName' in config) || config.presentationName === '') {
+        console.log("\x1b[31m%s\x1b[0m", "config requires 'presentationName'");
+        error = true;
+    }
+    if (!('prefix' in config) || config.prefix === '') {
+        console.log("\x1b[31m%s\x1b[0m", "config requires 'prefix'");
+        error = true;
+    }
+    if (!('externalId' in config) || config.externalId === '') {
+        console.log("\x1b[31m%s\x1b[0m", "config requires 'externalId'");
+        error = true;
+    }
+    if (!('presentationStartDate' in config)) {
+        console.log("\x1b[31m%s\x1b[0m", "config requires 'presentationStartDate'");
+        error = true;
+    }
+    if (!('presentationEndDate' in config)) {
+        console.log("\x1b[31m%s\x1b[0m", "config requires 'presentationEndDate'");
+        error = true;
+    }
+    if (!('productName' in config) || config.productName === '') {
+        console.log("\x1b[31m%s\x1b[0m", "config requires 'productName'");
+        error = true;
+    }
+    if (!('countryName' in config) || config.countryName === '') {
+        console.log("\x1b[31m%s\x1b[0m", "config requires 'countryName'");
+        error = true;
+    }
+    if (!('sharedResourceExternalId' in config) || config.sharedResourceExternalId === '') {
+        console.log("\x1b[31m%s\x1b[0m", "config requires 'sharedResourceExternalId'");
+        error = true;
+    }
+
+    if (arg.new === undefined) {
+        console.log("\x1b[31m%s\x1b[0m", 'EXAMPLE: > gulp keymessage --new "Key message name"');
+        error = true;
+    }
+
+    if (error) {
+        cb();
+        return;
+    }
+
+    let newFileName = arg.new.replace(/ /g, "-");
+    let presFileName = config.presentationName.replace(/ /g, "-");
+    let sharedFileName = presFileName + '-shared-resource';
+    let presSharedName = config.presentationName;
+    let kmDataPres = {}, kmDataShared = {}, kmData = {};
+    let addPresShared = false;
+
+    jsonfile.readFile('./keymessages.json', function (err, obj) {
+        if (err) console.error(err);
+
+        ///> add key message(s) to keymessages.json
+
+        if (Object.keys(obj).length === 0 && obj.constructor === Object) {
+
+            // append new key message to obj
+            obj[presSharedName] = true;
+            obj[presSharedName + ' shared resource'] = true;
+
+            // write out to file: pres
+            jsonfile.writeFile('./keymessages.json', obj, { spaces: 4, EOL: '\r\n' }, function (err) {
+                if (err) console.error(err);
+            });
+
+            // create key message config file
+            kmDataPres = templateKMdata('Presentation', '', '',
+                config.prefix, presSharedName, config.externalId,
+                config.sharedResourceExternalId, config.productName,
+                config.countryName, '');
+
+            // create key message config file
+            kmDataShared = templateKMdata('Shared', '', '',
+                config.prefix, presSharedName + ' shared resource', config.externalId,
+                config.sharedResourceExternalId, config.productName,
+                config.countryName, sharedFileName);
+
+            addPresShared = true;
+        }
+    });
+
+    setTimeout(function(e) {
+        jsonfile.readFile('./keymessages.json', function (err, obj) {
+            if (err) console.error(err);
+
+            obj[arg.new] = true;
+
+            // write out to file: key message
+            jsonfile.writeFile('./keymessages.json', obj, { spaces: 4, EOL: '\r\n' }, function (err) {
+                if (err) console.error(err);
+            });
+
+            ///> create [keymessage].json file(s)
+
+            // copy new template
+            gulp.src('./templates/template-keymessage.html')
+                .pipe(inject.replace('ADD PAGE ID HERE', arg.new.toCamelCase()))
+                .pipe(rename(newFileName + '.html'))
+                .pipe(gulp.dest('./source/'));
+
+            // add new previews
+            gulp.src('./templates/previews/*')
+                .pipe(gulp.dest('./source/previews/' + newFileName));
+
+            // add new less template
+            gulp.src('./templates/shared/less/keymessages/less-template-file.less')
+                .pipe(inject.replace('PAGE NAME', arg.new))
+                .pipe(inject.replace('PageName', arg.new.toCamelCase()))
+                .pipe(rename(newFileName + '.less'))
+                .pipe(gulp.dest('./source/shared/less/keymessages/'));
+
+            // append new less template @import to default.less
+            gulp.src('./source/shared/less/default.less')
+                .pipe(inject.append('\r\n@import "keymessages/' + newFileName + '.less";'))
+                .pipe(gulp.dest('./source/shared/less/'));
+
+            // insert JS link into app.js
+            let js = fs.readFileSync('./templates/template-keymessage.js', 'utf8');
+            js = js.replace(/FILENAME/g, newFileName).replace('METHODNAME', arg.new.replace(/-/g, " ").toCamelCase());
+
+            gulp.src('./source/shared/js/app.js')
+                .pipe(inject.before('/** INSERT NEW KEYMESSAGE LINK HERE **/', js + '    '))
+                .pipe(gulp.dest('./source/shared/js/'));
+
+            // create key message config file
+            kmData = templateKMdata('Slide', '', '',
+                config.prefix, arg.new, config.externalId,
+                config.sharedResourceExternalId, config.productName,
+                config.countryName, newFileName);
+
+
+            //  - create folder
+            gulp.src('*.*', {read: false})
+                .pipe(gulp.dest('./keymessages'));
+
+            setTimeout(function() {
+                //  - create the json file
+                jsonfile.writeFile('./keymessages/' + newFileName + '.json', kmData, { spaces: 4, EOL: '\r\n' }, function (err) {
+                    if (err) console.error(err);
+                });
+
+                if (addPresShared) {
+                    jsonfile.writeFile('./keymessages/' + presFileName + '.json', kmDataPres, { spaces: 4, EOL: '\r\n' }, function (err) {
+                        if (err) console.error(err);
+                    });
+                    jsonfile.writeFile('./keymessages/' + sharedFileName + '.json', kmDataShared, { spaces: 4, EOL: '\r\n' }, function (err) {
+                        if (err) console.error(err);
+                    });
+                }
+            }, 250);
+
+        });
+
+        cb();
+    }, 500);
+}
+
+
+/**********************************************************************************************************
+ * add a new key message to the project using...
+ *
+ *    > gulp link --km "key-message-name.zip" --method "nameOfMethod" --id "presentation-ID"
+ *
+ */
+function externalLink(cb) {
+
+    let error = false;
+
+    if (arg.method === undefined) {
+        console.log("\x1b[31m%s\x1b[0m", "requires '--method'");
+        error = true;
+    }
+    if (arg.km === undefined) {
+        console.log("\x1b[31m%s\x1b[0m", "requires '--km'");
+        error = true;
+    }
+    if (arg.id === undefined) {
+        console.log("\x1b[31m%s\x1b[0m", "requires '--id'");
+        error = true;
+    }
+
+    if (error) {
+        console.log("\x1b[31m%s\x1b[0m", 'EXAMPLE: > gulp link --km "key-message-name.zip" --method "nameOfMethod" --id "123-presentation-ID"');
+        cb();
+        return;
+    }
+
+    let methodName = arg.method.replace(/-/g, " ").toCamelCase();
+    let keyMessage = (arg.km.indexOf('.zip') !== -1) ? arg.km : arg.km + '.zip';
+    let presID = arg.id;
+
+    // insert JS link into app.js
+    let js = fs.readFileSync('./templates/template-link-to-pres.js', 'utf8');
+    js = js.replace(/KEYMESSAGE/g, keyMessage).replace(/PRESENTATION/g, presID).replace('METHODNAME', methodName);
+
+    gulp.src('./source/shared/js/app.js')
+        .pipe(inject.before('/** INSERT LINK TO OTHER PRES HERE **/', js + '    '))
+        .pipe(gulp.dest('./source/shared/js/'));
+
+    cb();
+}
+
+
+function generateImages(cb) {
+
+    // loop through previews folders
+    // resize grab and rename as poster
+    // copy and resize poster and rename as thumb
+
+    gulp.src(['./source/previews/*/*.{PNG,png,JPG,jpg}', '!./source/previews/*/poster.png', '!./source/previews/*/thumb.png'])
+        .pipe(imageResize({
+            //imageMagick: true,
+            width: 1024,
+            height: 768,
+            quality: 5,
+            format: 'png'
+        }))
+        .pipe(rename(function (path){
+            path.basename = 'poster';
+        }))
+        .pipe(gulp.dest('./source/previews'));
+
+    gulp.src(['./source/previews/*/*.{PNG,png,JPG,jpg}', '!./source/previews/*/poster.png', '!./source/previews/*/thumb.png'])
+        .pipe(imageResize({
+            //imageMagick: true,
+            width: 200,
+            height: 150,
+            quality: 3,
+            format: 'png'
+        }))
+        .pipe(rename(function (path){
+            path.basename = 'thumb';
+        }))
+        .pipe(gulp.dest('./source/previews'));
+
+    gulp.src(['./source/previews/*/*.{PNG,png,JPG,jpg}', '!./source/previews/*/poster.png', '!./source/previews/*/thumb.png'], {read: false})
+        .pipe(clean());
+
+    cb();
+}
+
+
+/**********************************************************************************************************
+ * rename a key message in the project using...
+ *
+ *    > gulp rename --from "Key message" --to "New key message"
+ *
+ * Does not check for existing files!
+ */
+function renameKeymessage(cb) {
+
+    let error = false;
+
+    if (arg.from === undefined) {
+        console.log("\x1b[31m%s\x1b[0m", "requires '--from'");
+        error = true;
+    }
+    if (arg.to === undefined) {
+        console.log("\x1b[31m%s\x1b[0m", "requires '--to'");
+        error = true;
+    }
+
+    if (error) {
+        console.log("\x1b[31m%s\x1b[0m", 'EXAMPLE: > gulp rename --from "Key message name" --to "New key message name"');
+        cb();
+        return;
+    }
+
+    let oldFileName = arg.from.replace(/ /g, "-");
+    let newFileName = arg.to.replace(/ /g, "-");
+    let oldMethodName = arg.from.replace(/-/g, " ").toCamelCase();
+    let newMethodName = arg.to.replace(/-/g, " ").toCamelCase();
+
+    // update LESS and rename file
+    gulp.src('./source/shared/less/keymessages/' + oldFileName + '.less')
+        .pipe(inject.replace(arg.from, arg.to))
+        .pipe(inject.replace('#' + arg.from.toCamelCase(), arg.to.toCamelCase()))
+        .pipe(rename(newFileName + '.less'))
+        .pipe(gulp.dest('./source/shared/less/keymessages/'))
+        .on('end', function() {
+            gulp.src('./source/shared/less/keymessages/' + oldFileName + '.less', {read: false}).pipe(clean());
+        });
+
+    // update default.less
+    gulp.src('./source/shared/less/default.less')
+        .pipe(inject.replace('@import "keymessages/' + oldFileName, '@import "keymessages/' + newFileName))
+        .pipe(gulp.dest('./source/shared/less/'));
+
+    // update app.js
+    gulp.src('./source/shared/js/app.js')
+        .pipe(inject.replace("goTo-" + oldMethodName, "goTo-" + newMethodName))
+        .pipe(inject.replace("'" + oldFileName + ".zip', ''", "'" + newFileName + ".zip', ''"))
+        .pipe(inject.replace("href = '" + oldFileName + ".html'", "href = '" + newFileName + ".html'"))
+        .pipe(gulp.dest('./source/shared/js/'));
+
+    // update classname + goTo in HTML and rename HTML
+    gulp.src('./source/' + oldFileName + '.html')
+        .pipe(inject.replace('<body id="' + arg.from.toCamelCase() + '">', '<body id="' + arg.to.toCamelCase() + '">'))
+        .pipe(inject.replace('goTo-' + oldMethodName, 'goTo-' + newMethodName))
+        .pipe(rename(newFileName + '.html'))
+        .pipe(gulp.dest('./source/'))
+        .on('end', function() {
+            gulp.src('./source/' + oldFileName + '.html', {read: false}).pipe(clean());
+        });
+
+    // update keymessages.json
+    gulp.src('./keymessages.json')
+        .pipe(inject.replace('"' + arg.from + '":', '"' + arg.to + '":'))
+        .pipe(gulp.dest('./'));
+
+    // update [key message].json and rename file
+    gulp.src('./keymessages/' + oldFileName + '.json')
+        .pipe(inject.replace('"name__v": "' + config.prefix.toUpperCase() + ' - ' + arg.from + '"', '"name__v": "' + config.prefix.toUpperCase() + ' - ' + arg.to + '"'))
+        .pipe(inject.replace('"slide.filename": "' + oldFileName + '.zip"', '"slide.filename": "' + newFileName + '.zip"'))
+        .pipe(rename(newFileName + '.json'))
+        .pipe(gulp.dest('./keymessages/'))
+        .on('end', function() {
+            gulp.src('./keymessages/' + oldFileName + '.json', {read: false}).pipe(clean());
+        });
+
+    // rename previews folder
+    gulp.src('./source/previews/' + oldFileName)
+        .pipe(rename(newFileName))
+        .pipe(gulp.dest('./source/previews/'))
+        .on('end', function() {
+            gulp.src('./source/previews/' + oldFileName + '/*')
+                .pipe(gulp.dest('./source/previews/' + newFileName))
+                .on('end', function() {
+                    gulp.src('./source/previews/' + oldFileName, {read: false}).pipe(clean());
+                });
+        });
+
+    // rename goTo refs in all html files
+    gulp.src('./source/*.html')
+        .pipe(inject.replace('goTo-' + oldMethodName, 'goTo-' + newMethodName))
+        .pipe(gulp.dest('./source/'));
+
+    cb();
+}
+
+
+function build(cb) {
+    gulp.src('./source/shared/less/default.less')
+        .pipe(sourcemaps.init())
+        .pipe(less())
+        .pipe(sourcemaps.write('./'))
+        .pipe(gulp.dest('./source/shared/less'))
+        .on('end', function() {
+            gulp.src('./source/shared/less/default.css')
+                .pipe(cleanCSS({compatibility: 'ie8'}))
+                .pipe(rename(function (path) {path.extname = '.min.css'}))
+                .pipe(gulp.dest('./build/shared/css'));
+        });
+
+    gulp.src(['./source/shared/js/*.js', '!./source/shared/js/*.min.js'])
+        .pipe(uglify())
+        .pipe(rename(function (path) {path.extname = '.min.js'}))
+        .pipe(gulp.dest('./build/shared/js'));
+
+    // also copy any .min.js files from source
+    gulp.src('./source/shared/js/*.min.js')
+        .pipe(gulp.dest('./build/shared/js'));
+
+    // copy fonts
+    gulp.src('./source/shared/fonts/*')
+        .pipe(gulp.dest('./build/shared/fonts'));
+
+    // copy images
+    gulp.src('./source/shared/imgs/*')
+        .pipe(gulp.dest('./build/shared/imgs'));
+
+    // copy html files
+    gulp.src('./source/*.html')
+        .pipe(gulp.dest('./build'));
+
+    cb();
+}
+
+function dist(cb) {
+
+    // copy js
+    gulp.src(['./source/shared/js/app.js'])
+        .pipe(replace('isPublished = false', 'isPublished = true'))
+        .pipe(gulp.dest('./build/shared/js'))
+        .on('end', function () {
+            gulp.src(['./build/shared/js/*.js', '!./build/shared/js/*.min.js'])
+                .pipe(uglify())
+                .pipe(rename(function (path) {path.extname = '.min.js'}))
+                .pipe(gulp.dest('./build/shared/js'))
+                .on('end', function () {
+                    // copy all min.js from build
+                    gulp.src('./build/shared/js/*.min.js')
+                        .pipe(gulp.dest('./dist/TMP/shared/js'));
+
+                    // also copy any .min.js files from source
+                    gulp.src('./source/shared/js/*.min.js')
+                        .pipe(gulp.dest('./dist/TMP/shared/js'));
+
+                    // reset app.js isPublished var to false
+                    gulp.src(['./source/shared/js/app.js'])
+                        .pipe(replace('isPublished = true', 'isPublished = false'))
+                        .pipe(gulp.dest('./build/shared/js'))
+                });
+        })
+
+    // copy fonts
+    gulp.src('./build/shared/fonts/*')
+        .pipe(gulp.dest('./dist/TMP/shared/fonts'));
+
+    // copy images
+    gulp.src('./build/shared/imgs/*')
+        .pipe(gulp.dest('./dist/TMP/shared/imgs'));
+
+    // copy preview images
+    gulp.src('./source/previews/*/*')
+        .pipe(gulp.dest('./dist/TMP/keymessages'));
+
+    // copy html files
+    setTimeout(function () {
+        htmlFiles.forEach(function (htmlFile) {
+            gulp.src(htmlFile)
+                .pipe(rename(function (path) {path.basename = 'index'}))
+                .pipe(gulp.dest('./dist/TMP/keymessages/' + path.basename(htmlFile, '.html')));
+        });
+    }, 500);
+
+    // copy css
+    setTimeout(function () {
+        gulp.src('./build/shared/css/default.min.css')
+            .pipe(gulp.dest('./dist/TMP/shared/css'));
+    }, 750);
+
+    // zip keymessages
+    setTimeout(function () {
+        htmlFiles.forEach(function (htmlFile) {
+            gulp.src( './dist/TMP/keymessages/' + path.basename(htmlFile, '.html') + '/*' )
+                .pipe(zip(path.basename(htmlFile, '.html') + '.zip'))
+                .pipe(gulp.dest('./dist'));
+        });
+    }, 1500);
+
+    // zip shared files
+    setTimeout(function () {
+        gulp.src('./dist/TMP/shared/**')
+            .pipe(zip(config.presentationName.replace(/ /g, "-") + '-shared-resource.zip'))
+            .pipe(gulp.dest('./dist'))
+            .on('end', function() {
+                setTimeout(function () {
+                    rimraf('./dist/TMP', function () {  });
+                    cb();
+                }, 2000);
+            });
+    }, 2250);
+
+    // make the Vault MC Loader csv
+    let loadedKMs = require('./keymessages.json');
+    let addHeaders = true;
+    let csvData = '';
+
+    setTimeout(function() {
+        for (const A of Object.entries(loadedKMs)) {
+            let km = A[0];
+            let allowKm = A[1];
+
+            if (allowKm) {
+
+                let dd = require('./keymessages/' + km.replace(/ /g, "-") + '.json');
+
+                if (addHeaders) {
+                    csvData = Object.keys(dd).toString() + '\r\n';
+                    addHeaders = false;
+                }
+                csvData += Object.values(dd).toString() + '\r\n';
+            }
+        }
+
+        // save to ./build/vault-mc-loader.csv
+        (async () => {
+            await write('./dist/vault-mc-loader.csv', csvData);
+        })();
+    }, 1000);
+
+    cb();
+}
+
+exports.default = defaultTask;
+
+exports.setup = setup;
+
+exports.keymessage = keymessagev2;
+
+exports.link = externalLink;
+
+exports.images = generateImages;
+
+exports.rename = renameKeymessage;
+
+exports.build = build;
+
+exports.dist = dist;
+
+
+// template data for key message file
+function templateKMdata(type, startDate, endDate, prefix, name_v, externalId, sharedResourceExternalId, productName, countryName, newFileName) {
+
+    let lifecycle = '', mediaType = '', presProductName = '', presCountry = '', presExternalId = '', training = '', hidden = '', shared = '', fieldsOnly = '';
+
+    prefix = prefix.toUpperCase();
+
+    if (type === 'Presentation') {
+        presProductName = productName;
+        presCountry = countryName;
+        presExternalId = prefix + 'pres-' + externalId;
+        lifecycle = 'Binder Lifecycle';
+        training = hidden = fieldsOnly = 'FALSE';
+
+        productName = countryName = externalId = sharedResourceExternalId = newFileName = '';
+    }
+
+    if (type === 'Slide') {
+        lifecycle = 'CRM Content Lifecycle';
+        externalId = prefix + 'pres-' + externalId;
+        sharedResourceExternalId = prefix + 'sr-' + sharedResourceExternalId;
+        newFileName = newFileName + ".zip";
+        mediaType = 'HTML';
+    }
+
+    if (type === 'Shared') {
+        lifecycle = 'CRM Content Lifecycle';
+        presExternalId = prefix + 'sr-' + sharedResourceExternalId;
+        externalId = sharedResourceExternalId = '';
+        newFileName = newFileName + ".zip";
+        shared = 'TRUE';
+    }
+
+    return {
+        "document_id__v" : "",
+        "external_id__v" : presExternalId,
+        "name__v" : prefix + " - " + name_v,
+        "Create Presentation" : "FALSE",
+        "Type" : type,
+        "lifecycle__v" : lifecycle,
+        "Presentation Link" : externalId,
+        "Fields Only" : fieldsOnly,
+        "pres.crm_training__v" : training,
+        "pres.crm_hidden__v" : hidden,
+        "pres.product__v.name__v" : presProductName,
+        "pres.country__v.name__v" : presCountry,
+        "pres.clm_content__v" : "TRUE",
+        "pres.crm_start_date__v" : startDate,
+        "pres.crm_end_date__v" : endDate,
+        "slide.name__v" : "",
+        "slide.lifecycle__v" : "",
+        "slide.crm_media_type__v" : mediaType,
+        "slide.related_sub_pres__v" : "",
+        "slide.related_shared_resource__v" : sharedResourceExternalId,
+        "slide.crm_disable_actions__v" : "",
+        "slide.product__v.name__v" : productName,
+        "slide.country__v.name__v" : countryName,
+        "slide.filename" : newFileName,
+        "slide.clm_content__v" : "TRUE",
+        "slide.crm_shared_resource__v" : shared
+    }
+}
+
+// convert string to camelcase
+String.prototype.toCamelCase = function() {
+    return this
+        .replace(/\s(.)/g, function($1) { return $1.toUpperCase(); })
+        .replace(/\s/g, '')
+        .replace(/\^(.)/g, function($1) { return $1.toLowerCase(); });
+}
+
+// fetch command line arguments
+const arg = (argList => {
+
+    let arg = {}, a, opt, thisOpt, curOpt;
+    for (a = 0; a < argList.length; a++) {
+
+        thisOpt = argList[a].trim();
+        opt = thisOpt.replace(/^\-+/, '');
+
+        if (opt === thisOpt) {
+
+            // argument value
+            if (curOpt) arg[curOpt] = opt.replace(/([^a-z0-9_-]+)/gi, ' ').trim();
+            curOpt = null;
+
+        }
+        else {
+
+            // argument name
+            curOpt = opt;
+            arg[curOpt] = true;
+
+        }
+
+    }
+
+    return arg;
+
+})(process.argv);
