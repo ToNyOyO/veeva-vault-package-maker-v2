@@ -150,6 +150,7 @@ $ gulp keymessage --new "Key Message name"
 - Creates template thumb and poster images in the `previews` folder
 - Adds a Key Message LESS file for this page in `source`>`shared`>`less`>`keymessages` (also adds a link into `default.less`)
 - Inserts a method to capture menu interaction for the new keymessage (`app.js`) and you'll want to add a class to your menu link that matches the pattern `goTo-FilenameInCamelcase` 
+- Adds the `goTo-FilenameInCamelcase` link into the `nav.html` partial for you. Nav highlighting is controlled by jQuery setting an `active` class for the current page (experimental!)
 
 ##### If this is the first Key Message this will also create some required files 
 
