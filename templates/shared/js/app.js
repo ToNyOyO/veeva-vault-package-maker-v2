@@ -17,6 +17,20 @@ $(function() {
     var popup = $('.popup-link');
     var popCloseBtn = $('.pop-close-button');
 
+
+    /******************************************************************************
+     * Nav highlighting
+     */
+
+    var pageName = '.goTo-' + $(location).attr('href').split('/').pop().split('.').shift().replace(/-/g, ' ').toCamelCase();
+
+    $('nav').find(pageName).each(function (e) {
+        $(this).addClass('active');
+        $(this).parent().parent().addClass('active');
+        $(this).parent().parent().siblings('a').first().addClass('active');
+    });
+
+
     /******************************************************************************
      * References link (toggle)
      */

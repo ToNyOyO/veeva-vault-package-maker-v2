@@ -89,6 +89,11 @@ function setup(cb) {
     gulp.src('*.*', {read: false})
         .pipe(gulp.dest('./source/fonts'));
 
+    // create partials folder
+    gulp.src('./templates/template-nav.html')
+        .pipe(rename('nav.html'))
+        .pipe(gulp.dest('./source/partials'));
+
     // create build folder
     gulp.src('*.*', {read: false})
         .pipe(gulp.dest('./build'));
@@ -240,6 +245,11 @@ function keymessagev2(cb) {
             gulp.src('./source/shared/js/app.js')
                 .pipe(inject.before('/** INSERT NEW KEYMESSAGE LINK HERE **/', js + '    '))
                 .pipe(gulp.dest('./source/shared/js/'));
+
+            // insert reference into nav partial
+            gulp.src('./source/partials/nav.html')
+                .pipe(inject.before('<!-- NEW ITEM -->', '\r\n    <li><a href="#" class="goTo-' + arg.new.replace(/-/g, " ").toCamelCase() + '">' + arg.new + '</a></li>\r\n'))
+                .pipe(gulp.dest('./source/partials'));
 
             // create key message config file
             kmData = templateKMdata('Slide', '', '',
@@ -426,6 +436,11 @@ function renameKeymessage(cb) {
             gulp.src('./source/' + oldFileName + '.html', {read: false}).pipe(clean());
         });
 
+    // update goTo in NAV
+    gulp.src('./source/partials/nav.html')
+        .pipe(inject.replace('goTo-' + oldMethodName, 'goTo-' + newMethodName))
+        .pipe(gulp.dest('./source/partials'));
+
     // update keymessages.json
     gulp.src('./keymessages.json')
         .pipe(inject.replace('"' + arg.from + '":', '"' + arg.to + '":'))
@@ -530,10 +545,16 @@ function build(cb) {
                                                                 .on('end', function() {
 
                                                                     console.log('> inserting css/js into html files and copying...');
+
+                                                                    // insert JS link into app.js
+                                                                    let nav = fs.readFileSync('./source/partials/nav.html', 'utf8');
+                                                                    nav = nav.replace(/<!-- NEW ITEM -->/g, '');
+
                                                                     // copy html files
                                                                     gulp.src('./source/*.html')
                                                                         .pipe(inject.replace('<!-- INSERT CSS HERE  -->', '<link rel="stylesheet" href="./shared/css/default-' + epoch + '.min.css">'))
                                                                         .pipe(inject.replace('<!-- INSERT JS HERE  -->', '<script src="./shared/js/app-' + epoch + '.min.js"></script>'))
+                                                                        .pipe(inject.replace('<!-- INSERT NAV HERE  -->', nav + '    '))
                                                                         .pipe(gulp.dest('./build'))
                                                                         .on('end', function() {
 
