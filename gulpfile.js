@@ -311,7 +311,7 @@ function externalLink(cb) {
 }
 
 
-function generateImages(cb) {
+function generatePreviews(cb) {
 
     // loop through previews folders
     // resize grab and rename as poster
@@ -601,7 +601,7 @@ exports.keymessage = keymessagev2;
 
 exports.link = externalLink;
 
-exports.images = generateImages;
+exports.previews = generatePreviews;
 
 exports.rename = renameKeymessage;
 

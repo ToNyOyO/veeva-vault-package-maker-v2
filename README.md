@@ -41,14 +41,14 @@ To change the page order in Vault you can rearrange the order of the pages in `.
 - You can add links to slides in other Veeva presentations: 
   - Run `gulp link --km "key-message-name.zip" --method "nameOfMethod" --id "123-presentation-ID"` 
 - Create poster and thumbnail images:
-  - Drop your screen grabs into each Key Message folder in `./source/previews` and run `gulp images` (this will work for png or jpg and the screen grab filename is irrelevant)
+  - Drop your screen grabs into each Key Message folder in `./source/previews` and run `gulp previews` (this will work for png or jpg and the screen grab filename is irrelevant)
 - Rename existing Key Message:
   - Run `gulp rename --from "Old name" --to "New name"`
   - Renames all associated files/folders as they were created
 
 ## Prerequisits 
 
-You need to install both ImageMagick and GraphicsMagick if you want to use the `gulp images` command. 
+You need to install both ImageMagick and GraphicsMagick if you want to use the `gulp previews` command. 
 
 [see bottom of README for links]
 
@@ -117,7 +117,7 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 UTILITY TASKS
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-$ gulp images                                 Process screen grabs into poster/thumbnail images
+$ gulp previews                                 Process screen grabs into poster/thumbnail images
 
 $ gulp link --km "key-message-name.zip" 
             --method "nameOfMethod" 
@@ -168,7 +168,7 @@ gulp link --km "key-message-name.zip" --method "nameOfMethod" --id "123-presenta
 - The `--method` will be forced to camel case, hyphens and spaces will be removed
 
 ```
-gulp images
+gulp previews
 ```
 - Converts each Key Message screen grab into the poster and thumbnail for that Key Message
 - Place your screen grab file into the `./source/previews/your-key-message` folder
