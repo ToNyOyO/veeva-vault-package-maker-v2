@@ -110,8 +110,8 @@ $ gulp keymessage --new "Key Message name"    Add a Key Message to the project
                                               Create CLM Presentation json file
                                               Create CLM Pres shared resources json file
 
-$ gulp dev                                    Stage task
-$ gulp build                                  Deploy task
+$ gulp build                                  Stage task
+$ gulp dist                                   Deploy task
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
 UTILITY TASKS
