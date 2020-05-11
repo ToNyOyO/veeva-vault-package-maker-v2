@@ -519,15 +519,15 @@ function dist(cb) {
     setTimeout(function () {
         gulp.src(['./source/shared/js/app.js'])
             .pipe(replace('isPublished = false', 'isPublished = true'))
-            .pipe(rename(function (path) {
-                path.basename = 'app' + epoch;
-                path.extname = '.min.js'
-            }))
-            .pipe(gulp.dest('./build/shared/js'))
+            .pipe(gulp.dest('./source/shared/js'))
             .on('end', function () {
-                gulp.src(['./build/shared/js/*.js', '!./build/shared/js/*.min.js'])
+
+                gulp.src('./source/shared/js/app.js')
                     .pipe(uglify())
-                    .pipe(rename(function (path) {path.extname = '.min.js'}))
+                    .pipe(rename(function (path) {
+                        path.basename = 'app' + epoch;
+                        path.extname = '.min.js'
+                    }))
                     .pipe(gulp.dest('./build/shared/js'))
                     .on('end', function () {
 
@@ -539,20 +539,48 @@ function dist(cb) {
                                 // copy all min.js from build
                                 gulp.src('./build/shared/js/*.min.js')
                                     .pipe(gulp.dest('./dist/TMP/shared/js'));
+
+                                // also copy any .min.js files from source
+                                gulp.src('./source/shared/js/*.min.js')
+                                    .pipe(gulp.dest('./dist/TMP/shared/js'));
                             });
 
-                        // also copy any .min.js files from source
-                        gulp.src('./source/shared/js/*.min.js')
-                            .pipe(gulp.dest('./dist/TMP/shared/js'));
-
+                        // TIDY UP AFTER
                         // reset app.js isPublished var to false
                         gulp.src(['./source/shared/js/app.js'])
                             .pipe(replace('isPublished = true', 'isPublished = false'))
-                            .pipe(rename(function (path) {
-                                path.basename = 'app' + epoch;
-                                path.extname = '.min.js'
-                            }))
-                            .pipe(gulp.dest('./build/shared/js'))
+                            .pipe(gulp.dest('./source/shared/js'))
+                            .on('end', function () {
+
+                                // put the reset app.js back in build
+                                gulp.src('./source/shared/js/app.js')
+                                    .pipe(uglify())
+                                    .pipe(rename(function (path) {
+                                        path.basename = 'app' + epoch;
+                                        path.extname = '.min.js'
+                                    }))
+                                    .pipe(gulp.dest('./build/shared/js'));
+
+                                // copy and minify all the js
+                                gulp.src(['./source/shared/js/*.js', '!./source/shared/js/app.js', '!./source/shared/js/*.min.js'])
+                                    .pipe(uglify())
+                                    .pipe(rename(function (path) {
+                                        path.extname = '.min.js'
+                                    }))
+                                    .pipe(gulp.dest('./build/shared/js'));
+
+                                // copy all the minified js files
+                                gulp.src('./source/shared/js/*.min.js')
+                                    .pipe(gulp.dest('./build/shared/js'));
+
+                                // copy fonts
+                                gulp.src('./source/shared/fonts/*')
+                                    .pipe(gulp.dest('./build/shared/fonts'));
+
+                                // copy images
+                                gulp.src('./source/shared/imgs/*')
+                                    .pipe(gulp.dest('./build/shared/imgs'));
+                            });
                     });
             });
 
