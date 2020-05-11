@@ -97,6 +97,10 @@ function setup(cb) {
     gulp.src('*.*', {read: false})
         .pipe(gulp.dest('./dist'));
 
+    // create keymessages folder
+    gulp.src('*.*', {read: false})
+        .pipe(gulp.dest('./keymessages'));
+
     cb();
 }
 
@@ -243,11 +247,6 @@ function keymessagev2(cb) {
                 config.sharedResourceExternalId, config.productName,
                 config.countryName, newFileName);
 
-
-            //  - create folder
-            gulp.src('*.*', {read: false})
-                .pipe(gulp.dest('./keymessages'));
-
             setTimeout(function() {
                 //  - create the json file
                 jsonfile.writeFile('./keymessages/' + newFileName + '.json', kmData, { spaces: 4, EOL: '\r\n' }, function (err) {
@@ -322,6 +321,7 @@ function generatePreviews(cb) {
     // resize grab and rename as poster
     // copy and resize poster and rename as thumb
 
+    console.log('creating posters...');
     gulp.src(['./source/previews/*/*.{PNG,png,JPG,jpg}', '!./source/previews/*/poster.png', '!./source/previews/*/thumb.png'])
         .pipe(imageResize({
             //imageMagick: true,
@@ -333,25 +333,33 @@ function generatePreviews(cb) {
         .pipe(rename(function (path){
             path.basename = 'poster';
         }))
-        .pipe(gulp.dest('./source/previews'));
+        .pipe(gulp.dest('./source/previews'))
+        .on('end', function() {
 
-    gulp.src(['./source/previews/*/*.{PNG,png,JPG,jpg}', '!./source/previews/*/poster.png', '!./source/previews/*/thumb.png'])
-        .pipe(imageResize({
-            //imageMagick: true,
-            width: 200,
-            height: 150,
-            quality: 3,
-            format: 'png'
-        }))
-        .pipe(rename(function (path){
-            path.basename = 'thumb';
-        }))
-        .pipe(gulp.dest('./source/previews'));
+            console.log('creating thumbs...');
+            gulp.src(['./source/previews/*/*.{PNG,png,JPG,jpg}', '!./source/previews/*/poster.png', '!./source/previews/*/thumb.png'])
+                .pipe(imageResize({
+                    //imageMagick: true,
+                    width: 200,
+                    height: 150,
+                    quality: 3,
+                    format: 'png'
+                }))
+                .pipe(rename(function (path){
+                    path.basename = 'thumb';
+                }))
+                .pipe(gulp.dest('./source/previews'))
+            .on('end', function () {
 
-    gulp.src(['./source/previews/*/*.{PNG,png,JPG,jpg}', '!./source/previews/*/poster.png', '!./source/previews/*/thumb.png'], {read: false})
-        .pipe(clean());
-
-    cb();
+                console.log('tidying up...');
+                gulp.src(['./source/previews/*/*.{PNG,png,JPG,jpg}', '!./source/previews/*/poster.png', '!./source/previews/*/thumb.png'], {read: false})
+                    .pipe(clean())
+                    .pipe(gulp.dest('./source/previews'))
+                    .on('end', function () {
+                        cb();
+                    });
+            })
+        });
 }
 
 
@@ -476,7 +484,7 @@ function build(cb) {
                 .pipe(gulp.dest('./source/shared/less'))
                 .on('end', function() {
 
-                    console.log('saving out min.css...');
+                    console.log('> saving out min.css...');
                     gulp.src('./source/shared/less/default.css')
                         .pipe(cleanCSS({compatibility: 'ie8'}))
                         .pipe(rename(function (path) {
@@ -486,14 +494,14 @@ function build(cb) {
                         .pipe(gulp.dest('./build/shared/css'))
                         .on('end', function() {
 
-                            console.log('saving out min.js...');
+                            console.log('> saving out min.js...');
                             gulp.src(['./source/shared/js/*.js', '!./source/shared/js/app.js', '!./source/shared/js/*.min.js'])
                                 .pipe(uglify())
                                 .pipe(rename(function (path) {path.extname = '.min.js'}))
                                 .pipe(gulp.dest('./build/shared/js'))
                                 .on('end', function() {
 
-                                    console.log('saving out app.min.js...');
+                                    console.log('> saving out app.min.js...');
                                     gulp.src(['./source/shared/js/app.js', '!./source/shared/js/*.min.js'])
                                         .pipe(uglify())
                                         .pipe(rename(function (path) {
@@ -503,25 +511,25 @@ function build(cb) {
                                         .pipe(gulp.dest('./build/shared/js'))
                                         .on('end', function() {
 
-                                            console.log('copying other min.js files...');
+                                            console.log('> copying other min.js files...');
                                             // also copy any .min.js files from source
                                             gulp.src('./source/shared/js/*.min.js')
                                                 .pipe(gulp.dest('./build/shared/js'))
                                                 .on('end', function() {
 
-                                                    console.log('copying fonts...');
+                                                    console.log('> copying fonts...');
                                                     // copy fonts
                                                     gulp.src('./source/shared/fonts/*')
                                                         .pipe(gulp.dest('./build/shared/fonts'))
                                                         .on('end', function() {
 
-                                                            console.log('copying images...');
+                                                            console.log('> copying images...');
                                                             // copy images
                                                             gulp.src('./source/shared/imgs/*')
                                                                 .pipe(gulp.dest('./build/shared/imgs'))
                                                                 .on('end', function() {
 
-                                                                    console.log('inserting css/js into html files and copying...');
+                                                                    console.log('> inserting css/js into html files and copying...');
                                                                     // copy html files
                                                                     gulp.src('./source/*.html')
                                                                         .pipe(inject.replace('<!-- INSERT CSS HERE  -->', '<link rel="stylesheet" href="./shared/css/default-' + epoch + '.min.css">'))
