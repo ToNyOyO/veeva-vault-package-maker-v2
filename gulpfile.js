@@ -12,6 +12,7 @@
 //@ToDo: possibly import the menu from a file? https://github.com/reinerBa/gulp-tag-content-replace
 
 const gulp = require('gulp');
+const { series } = require('gulp');
 const fs = require('fs');
 const glob = require("glob");
 const path = require('path');
@@ -452,155 +453,208 @@ function renameKeymessage(cb) {
     cb();
 }
 
-
+/**********************************************************************************************************
+ * build the files ready for viewing in browser
+ *
+ *    > gulp build
+ *
+ * Does not check for existing files!
+ */
 function build(cb) {
+
+    let epoch = new Date().getTime();
 
     gulp.src('./build/*', {read: false})
         .pipe(clean())
         .pipe(gulp.dest('./build'))
         .on('end', function () {
-            buildFiles();
+
+            gulp.src('./source/shared/less/default.less')
+                .pipe(sourcemaps.init())
+                .pipe(less())
+                .pipe(sourcemaps.write('./'))
+                .pipe(gulp.dest('./source/shared/less'))
+                .on('end', function() {
+
+                    console.log('saving out min.css...');
+                    gulp.src('./source/shared/less/default.css')
+                        .pipe(cleanCSS({compatibility: 'ie8'}))
+                        .pipe(rename(function (path) {
+                            path.basename = 'default-' + epoch;
+                            path.extname = '.min.css'
+                        }))
+                        .pipe(gulp.dest('./build/shared/css'))
+                        .on('end', function() {
+
+                            console.log('saving out min.js...');
+                            gulp.src(['./source/shared/js/*.js', '!./source/shared/js/app.js', '!./source/shared/js/*.min.js'])
+                                .pipe(uglify())
+                                .pipe(rename(function (path) {path.extname = '.min.js'}))
+                                .pipe(gulp.dest('./build/shared/js'))
+                                .on('end', function() {
+
+                                    console.log('saving out app.min.js...');
+                                    gulp.src(['./source/shared/js/app.js', '!./source/shared/js/*.min.js'])
+                                        .pipe(uglify())
+                                        .pipe(rename(function (path) {
+                                            path.basename = 'app-' + epoch;
+                                            path.extname = '.min.js'
+                                        }))
+                                        .pipe(gulp.dest('./build/shared/js'))
+                                        .on('end', function() {
+
+                                            console.log('copying other min.js files...');
+                                            // also copy any .min.js files from source
+                                            gulp.src('./source/shared/js/*.min.js')
+                                                .pipe(gulp.dest('./build/shared/js'))
+                                                .on('end', function() {
+
+                                                    console.log('copying fonts...');
+                                                    // copy fonts
+                                                    gulp.src('./source/shared/fonts/*')
+                                                        .pipe(gulp.dest('./build/shared/fonts'))
+                                                        .on('end', function() {
+
+                                                            console.log('copying images...');
+                                                            // copy images
+                                                            gulp.src('./source/shared/imgs/*')
+                                                                .pipe(gulp.dest('./build/shared/imgs'))
+                                                                .on('end', function() {
+
+                                                                    console.log('inserting css/js into html files and copying...');
+                                                                    // copy html files
+                                                                    gulp.src('./source/*.html')
+                                                                        .pipe(inject.replace('<!-- INSERT CSS HERE  -->', '<link rel="stylesheet" href="./shared/css/default-' + epoch + '.min.css">'))
+                                                                        .pipe(inject.replace('<!-- INSERT JS HERE  -->', '<script src="./shared/js/app-' + epoch + '.min.js"></script>'))
+                                                                        .pipe(gulp.dest('./build'))
+                                                                        .on('end', function() {
+
+                                                                            cb();
+                                                                        });
+                                                                });
+                                                        });
+                                                });
+                                        });
+                                });
+                        });
+                });
+        });
+}
+
+function setAsNotPublished(cb) {
+
+    gulp.src('./build/*', {read: false})
+        .pipe(clean())
+        .pipe(gulp.dest('./build'))
+        .on('end', function () {
+
+            // rebuild  js for dist
+            gulp.src(['./source/shared/js/app.js'])
+                .pipe(replace('isPublished = true', 'isPublished = false'))
+                .pipe(gulp.dest('./source/shared/js'))
+                .on('end', function () {
+
+                    cb();
+                });
+        });
+}
+
+function setAsPublished(cb) {
+
+    gulp.src('./build/*', {read: false})
+        .pipe(clean())
+        .pipe(gulp.dest('./build'))
+        .on('end', function () {
+
+            // rebuild  js for dist
+            gulp.src(['./source/shared/js/app.js'])
+                .pipe(replace('isPublished = false', 'isPublished = true'))
+                .pipe(gulp.dest('./source/shared/js'))
+                .on('end', function () {
+
+                    cb();
+                });
+        });
+}
+
+function copyCssToDist (cb) {
+    gulp.src('./build/shared/css/*')
+        .pipe(gulp.dest('./dist/TMP/shared/css'))
+        .on('end', function () {
             cb();
         });
 }
 
-function buildFiles () {
-
-    let epoch = new Date().getTime();
-
-    gulp.src('./source/shared/less/default.less')
-        .pipe(sourcemaps.init())
-        .pipe(less())
-        .pipe(sourcemaps.write('./'))
-        .pipe(gulp.dest('./source/shared/less'))
-        .on('end', function() {
-            gulp.src('./source/shared/less/default.css')
-                .pipe(cleanCSS({compatibility: 'ie8'}))
-                .pipe(rename(function (path) {
-                    path.basename = 'default-' + epoch;
-                    path.extname = '.min.css'
-                }))
-                .pipe(gulp.dest('./build/shared/css'));
+function copyJsToDist (cb) {
+    gulp.src('./build/shared/js/*')
+        .pipe(gulp.dest('./dist/TMP/shared/js'))
+        .on('end', function () {
+            cb();
         });
-
-    gulp.src(['./source/shared/js/*.js', '!./source/shared/js/app.js', '!./source/shared/js/*.min.js'])
-        .pipe(uglify())
-        .pipe(rename(function (path) {path.extname = '.min.js'}))
-        .pipe(gulp.dest('./build/shared/js'));
-
-    gulp.src(['./source/shared/js/app.js', '!./source/shared/js/*.min.js'])
-        .pipe(uglify())
-        .pipe(rename(function (path) {
-            path.basename = 'app-' + epoch;
-            path.extname = '.min.js'
-        }))
-        .pipe(gulp.dest('./build/shared/js'));
-
-    // also copy any .min.js files from source
-    gulp.src('./source/shared/js/*.min.js')
-        .pipe(gulp.dest('./build/shared/js'));
-
-    // copy fonts
-    gulp.src('./source/shared/fonts/*')
-        .pipe(gulp.dest('./build/shared/fonts'));
-
-    // copy images
-    gulp.src('./source/shared/imgs/*')
-        .pipe(gulp.dest('./build/shared/imgs'));
-
-    // copy html files
-    gulp.src('./source/*.html')
-        .pipe(inject.replace('<!-- INSERT CSS HERE  -->', '<link rel="stylesheet" href="./shared/css/default-' + epoch + '.min.css">'))
-        .pipe(inject.replace('<!-- INSERT JS HERE  -->', '<script src="./shared/js/app-' + epoch + '.min.js"></script>'))
-        .pipe(gulp.dest('./build'));
-
 }
 
-function dist(cb) {
-
-    gulp.src('./build/*', {read: false})
-        .pipe(clean())
-        .pipe(gulp.dest('./build'))
-        .on('end', function () {
-            console.log('test dist');
-        });
-
-    // copy js
-    setTimeout(function () {
-        gulp.src(['./source/shared/js/app.js'])
-            .pipe(replace('isPublished = false', 'isPublished = true'))
-            .pipe(gulp.dest('./source/shared/js'))
-            .on('end', function () {
-                buildFiles();
-
-                // copy html files
-                setTimeout(function () {
-                    glob.sync('./build/*.html').forEach(function (htmlFile) {
-                        gulp.src(htmlFile)
-                            .pipe(rename(function (path) {path.basename = 'index'}))
-                            .pipe(gulp.dest('./dist/TMP/keymessages/' + path.basename(htmlFile, '.html')));
-                    });
-                }, 500);
-
-            });
-    }, 100);
-
-    // copy css and js
-    setTimeout(function () {
-        gulp.src('./build/shared/css/*')
-            .pipe(gulp.dest('./dist/TMP/shared/css'));
-
-        gulp.src('./build/shared/js/*')
-            .pipe(gulp.dest('./dist/TMP/shared/js'));
-    }, 1000);
-
-    // copy fonts
+function copyFontsToDist (cb) {
     gulp.src('./source/shared/fonts/*')
-        .pipe(gulp.dest('./dist/TMP/shared/fonts'));
-
-    // copy images
-    gulp.src('./source/shared/imgs/*')
-        .pipe(gulp.dest('./dist/TMP/shared/imgs'));
-
-    // copy preview images
-    gulp.src('./source/previews/*/*')
-        .pipe(gulp.dest('./dist/TMP/keymessages'));
-
-    // zip keymessages
-    setTimeout(function () {
-        htmlFiles.forEach(function (htmlFile) {
-            gulp.src( './dist/TMP/keymessages/' + path.basename(htmlFile, '.html') + '/*' )
-                .pipe(zip(path.basename(htmlFile, '.html') + '.zip'))
-                .pipe(gulp.dest('./dist'));
+        .pipe(gulp.dest('./dist/TMP/shared/fonts'))
+        .on('end', function () {
+            cb();
         });
-    }, 1800);
+}
 
-    // zip shared files
+function copyImagesToDist (cb) {
+    gulp.src('./source/shared/imgs/*')
+        .pipe(gulp.dest('./dist/TMP/shared/imgs'))
+        .on('end', function () {
+            cb();
+        });
+}
+
+function copyPreviewsToDist (cb) {
+    gulp.src('./source/previews/*/*')
+        .pipe(gulp.dest('./dist/TMP/keymessages'))
+        .on('end', function () {
+            cb();
+        });
+}
+
+function copyHtmlToDist (cb) {
+    glob.sync('./build/*.html').forEach(function (htmlFile) {
+        gulp.src(htmlFile)
+            .pipe(rename(function (path) {path.basename = 'index'}))
+            .pipe(gulp.dest('./dist/TMP/keymessages/' + path.basename(htmlFile, '.html')));
+    });
+
     setTimeout(function () {
-        gulp.src('./dist/TMP/shared/**')
-            .pipe(zip(config.presentationName.replace(/ /g, "-") + '-shared-resource.zip'))
-            .pipe(gulp.dest('./dist'))
-            .on('end', function() {
-                setTimeout(function () {
-                    rimraf('./dist/TMP', function () {  });
+        cb();
+    }, 1200);
+}
 
-                    gulp.src(['./source/shared/js/app.js'])
-                        .pipe(replace('isPublished = true', 'isPublished = false'))
-                        .pipe(gulp.dest('./source/shared/js'))
-                        .on('end', function () {
+function zipKeyMessages (cb) {
+    htmlFiles.forEach(function (htmlFile) {
+        gulp.src( './dist/TMP/keymessages/' + path.basename(htmlFile, '.html') + '/*' )
+            .pipe(zip(path.basename(htmlFile, '.html') + '.zip'))
+            .pipe(gulp.dest('./dist'));
+    });
 
-                            gulp.src('./build/*', {read: false}).pipe(clean());
+    setTimeout(function () {
+        cb();
+    }, 1800);
+}
 
-                            setTimeout(function (e) {
-                                buildFiles();
-                            }, 650);
-                        });
+function zipSharedFiles (cb) {
+    gulp.src('./dist/TMP/shared/**')
+        .pipe(zip(config.presentationName.replace(/ /g, "-") + '-shared-resource.zip'))
+        .pipe(gulp.dest('./dist'))
+        .on('end', function() {
+            setTimeout(function () {
+                rimraf('./dist/TMP', function () {  });
 
-                    cb();
-                }, 2000);
-            });
-    }, 2450);
+                cb();
+            }, 2000);
+        });
+}
 
+function generateCsv (cb) {
     // make the Vault MC Loader csv
     let loadedKMs = require('./keymessages.json');
     let addHeaders = true;
@@ -627,9 +681,10 @@ function dist(cb) {
         (async () => {
             await write('./dist/vault-mc-loader.csv', csvData);
         })();
-    }, 1000);
 
-    cb();
+        cb();
+
+    }, 1000);
 }
 
 exports.default = defaultTask;
@@ -646,7 +701,21 @@ exports.rename = renameKeymessage;
 
 exports.build = build;
 
-exports.dist = dist;
+exports.dist = series(
+    setAsPublished,
+    build,
+    copyCssToDist,
+    copyJsToDist,
+    copyFontsToDist,
+    copyImagesToDist,
+    copyPreviewsToDist,
+    copyHtmlToDist,
+    zipKeyMessages,
+    zipSharedFiles,
+    generateCsv,
+    setAsNotPublished,
+    build
+);
 
 
 // template data for key message file
