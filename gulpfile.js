@@ -455,13 +455,13 @@ function renameKeymessage(cb) {
 
 function build(cb) {
 
-    gulp.src('./build/*', {read: false}).pipe(clean());
-
-    setTimeout(function (e) {
-        buildFiles();
-
-        cb();
-    }, 100);
+    gulp.src('./build/*', {read: false})
+        .pipe(clean())
+        .pipe(gulp.dest('./build'))
+        .on('end', function () {
+            buildFiles();
+            cb();
+        });
 }
 
 function buildFiles () {
@@ -477,7 +477,7 @@ function buildFiles () {
             gulp.src('./source/shared/less/default.css')
                 .pipe(cleanCSS({compatibility: 'ie8'}))
                 .pipe(rename(function (path) {
-                    path.basename = 'default' + epoch;
+                    path.basename = 'default-' + epoch;
                     path.extname = '.min.css'
                 }))
                 .pipe(gulp.dest('./build/shared/css'));
@@ -491,7 +491,7 @@ function buildFiles () {
     gulp.src(['./source/shared/js/app.js', '!./source/shared/js/*.min.js'])
         .pipe(uglify())
         .pipe(rename(function (path) {
-            path.basename = 'app' + epoch;
+            path.basename = 'app-' + epoch;
             path.extname = '.min.js'
         }))
         .pipe(gulp.dest('./build/shared/js'));
@@ -510,15 +510,20 @@ function buildFiles () {
 
     // copy html files
     gulp.src('./source/*.html')
-        .pipe(inject.replace('<!-- INSERT CSS HERE  -->', '<link rel="stylesheet" href="./shared/css/default' + epoch + '.min.css">'))
-        .pipe(inject.replace('<!-- INSERT JS HERE  -->', '<script src="./shared/js/app' + epoch + '.min.js"></script>'))
+        .pipe(inject.replace('<!-- INSERT CSS HERE  -->', '<link rel="stylesheet" href="./shared/css/default-' + epoch + '.min.css">'))
+        .pipe(inject.replace('<!-- INSERT JS HERE  -->', '<script src="./shared/js/app-' + epoch + '.min.js"></script>'))
         .pipe(gulp.dest('./build'));
 
 }
 
 function dist(cb) {
 
-    gulp.src('./build/*', {read: false}).pipe(clean());
+    gulp.src('./build/*', {read: false})
+        .pipe(clean())
+        .pipe(gulp.dest('./build'))
+        .on('end', function () {
+            console.log('test dist');
+        });
 
     // copy js
     setTimeout(function () {
