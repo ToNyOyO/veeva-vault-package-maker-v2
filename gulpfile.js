@@ -247,9 +247,11 @@ function keymessagev2(cb) {
                 .pipe(gulp.dest('./source/shared/js/'));
 
             // insert reference into nav partial
-            gulp.src('./source/partials/nav.html')
-                .pipe(inject.before('<!-- NEW ITEM -->', '\r\n    <li><a href="#" class="goTo-' + arg.new.replace(/-/g, " ").toCamelCase() + '">' + arg.new + '</a></li>\r\n'))
-                .pipe(gulp.dest('./source/partials'));
+            if (!arg.notnav) {
+                gulp.src('./source/partials/nav.html')
+                    .pipe(inject.before('<!-- NEW ITEM -->', '\r\n    <li><a href="#" class="goTo-' + arg.new.replace(/-/g, " ").toCamelCase() + '">' + arg.new + '</a></li>\r\n'))
+                    .pipe(gulp.dest('./source/partials'));
+            }
 
             // create key message config file
             kmData = templateKMdata('Slide', '', '',

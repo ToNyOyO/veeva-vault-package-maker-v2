@@ -106,7 +106,8 @@ _________________________________________________________________________
 $ gulp                                        Default task that kicks off development mode
 $ gulp setup                                  Setup folders and config.json             
 
-$ gulp keymessage --new "Key Message name"    Add a Key Message to the project
+$ gulp keymessage --new 
+       "Key Message name" [--nonav]           Add a Key Message to the project
                                               Create CLM Presentation json file
                                               Create CLM Pres shared resources json file
 
@@ -142,7 +143,7 @@ $ gulp setup
 - Create a `source`>`previews` folder for thumbs and posters
 
 ```
-$ gulp keymessage --new "Key Message name"
+$ gulp keymessage --new "Key Message name" [--nonav]
 ```
 - Requires that you have filled in the `config.json` file! 
 - Creates the Key Message JSON file for use in the Vault MC Loader .csv file 
@@ -151,6 +152,7 @@ $ gulp keymessage --new "Key Message name"
 - Adds a Key Message LESS file for this page in `source`>`shared`>`less`>`keymessages` (also adds a link into `default.less`)
 - Inserts a method to capture menu interaction for the new keymessage (`app.js`) and you'll want to add a class to your menu link that matches the pattern `goTo-FilenameInCamelcase` 
 - Adds the `goTo-FilenameInCamelcase` link into the `nav.html` partial for you. Nav highlighting is controlled by jQuery setting an `active` class for the current page (experimental!)
+- Using the optional `--nonav` you can suppress adding the link to `nav.html`
 
 ##### If this is the first Key Message this will also create some required files 
 
