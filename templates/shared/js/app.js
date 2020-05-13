@@ -29,7 +29,50 @@ $(function() {
         $(this).parent().parent().addClass('active');
         $(this).parent().parent().siblings('a').first().addClass('active');
     });
+    
+    
+    /******************************************************************************
+     * Cheeky page flip
+     */
 
+    if (!isPublished) {
+        var l = $('<input type="button" class="secret-button" id="secret-left" value="&lt;" />');
+        var r = $('<input type="button" class="secret-button" id="secret-right" value="&gt;" />');
+
+        $("nav").prepend(r);
+        $("nav").prepend(l);
+
+        var nextMenuItem = '', prevMenuItem = '';
+
+        $.getJSON( "../keymessages.json", function( data ) {
+
+            var items = [];
+
+            $.each( data, function( key, val ) {
+                items.push(key);
+            });
+
+            for (var i=2; i<items.length; i++) {
+
+                if (pageName === '.goTo-' + items[i].replace(/-/g, ' ').toCamelCase()) {
+
+                    prevMenuItem = (i>2) ? items[i-1].replace(/ /g, '-') : '';
+                    nextMenuItem = (i<items.length) ? items[i+1].replace(/ /g, '-') : '';
+                }
+            }
+
+            $('.secret-button').on('click', function (e) {
+
+                if ($(this).attr('id') === 'secret-left' && prevMenuItem !== '') {
+                    location.href = prevMenuItem + '.html';
+                } else
+                if ($(this).attr('id') === 'secret-right' && nextMenuItem !== '') {
+                    location.href = nextMenuItem + '.html';
+                }
+            });
+        });
+    }
+    
 
     /******************************************************************************
      * References link (toggle)
