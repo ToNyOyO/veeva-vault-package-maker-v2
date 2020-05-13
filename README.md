@@ -198,6 +198,7 @@ $ gulp build
 ``` 
 As above but DIY.. 
 - Combine LESS files, minify css and minify JS
+- Adds Left/Right navigation buttons to header (removed when packaged for distribution)
 
 ```
 $ gulp dist
