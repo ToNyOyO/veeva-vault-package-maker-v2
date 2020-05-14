@@ -48,7 +48,7 @@ function defaultTask(cb) {
     if ('presentationName' in config) {
         gulp.watch([
             './source/**/*.html',
-            './source/shared/css/**/*.less',
+            './source/shared/less/**/*.less',
             './source/shared/js/*.js',
             '!./source/shared/js/*.min.js'
         ], build).on('end', function() {console.log('test')});
