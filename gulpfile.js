@@ -88,7 +88,7 @@ function setup(cb) {
 
     // create fonts folder
     gulp.src('*.*', {read: false})
-        .pipe(gulp.dest('./source/fonts'));
+        .pipe(gulp.dest('./source/shared/fonts'));
 
     // create partials folder
     gulp.src('./templates/template-nav.html')
