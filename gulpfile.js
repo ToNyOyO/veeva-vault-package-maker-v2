@@ -537,13 +537,13 @@ function build(cb) {
 
                                                     console.log('> copying fonts...');
                                                     // copy fonts
-                                                    gulp.src('./source/shared/fonts/*')
+                                                    gulp.src('./source/shared/fonts/**')
                                                         .pipe(gulp.dest('./build/shared/fonts'))
                                                         .on('end', function() {
 
                                                             console.log('> copying images...');
                                                             // copy images
-                                                            gulp.src('./source/shared/imgs/*')
+                                                            gulp.src('./source/shared/imgs/**')
                                                                 .pipe(gulp.dest('./build/shared/imgs'))
                                                                 .on('end', function() {
 
