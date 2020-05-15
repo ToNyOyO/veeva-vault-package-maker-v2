@@ -626,7 +626,7 @@ function copyJsToDist (cb) {
 }
 
 function copyFontsToDist (cb) {
-    gulp.src('./source/shared/fonts/*')
+    gulp.src('./source/shared/fonts/**')
         .pipe(gulp.dest('./dist/TMP/shared/fonts'))
         .on('end', function () {
             cb();
@@ -634,7 +634,7 @@ function copyFontsToDist (cb) {
 }
 
 function copyImagesToDist (cb) {
-    gulp.src('./source/shared/imgs/*')
+    gulp.src('./source/shared/imgs/**')
         .pipe(gulp.dest('./dist/TMP/shared/imgs'))
         .on('end', function () {
             cb();
