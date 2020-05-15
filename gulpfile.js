@@ -410,7 +410,7 @@ function renameKeymessage(cb) {
     // update LESS and rename file
     gulp.src('./source/shared/less/keymessages/' + oldFileName + '.less')
         .pipe(inject.replace(arg.from, arg.to))
-        .pipe(inject.replace('#' + arg.from.toCamelCase(), arg.to.toCamelCase()))
+        .pipe(inject.replace('#' + arg.from.toCamelCase(), '#' + arg.to.toCamelCase()))
         .pipe(rename(newFileName + '.less'))
         .pipe(gulp.dest('./source/shared/less/keymessages/'))
         .on('end', function() {
