@@ -38,7 +38,7 @@ try {
 } catch (ex) {
 
     (async () => {
-        await write('./config.json', "{}");
+        await write('./config.json', "{}", {}, function () {});
     })();
 
     console.log("\x1b[31m%s\x1b[0m", "\r\n>> Hey! You need to run 'gulp setup' then enter the Veeva required data in ./config.json\r\n");
