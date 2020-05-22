@@ -429,14 +429,20 @@ function renameKeymessage(cb) {
         .pipe(inject.replace("href = '" + oldFileName + ".html'", "href = '" + newFileName + ".html'"))
         .pipe(gulp.dest('./source/shared/js/'));
 
-    // update classname + goTo in HTML and rename HTML
-    gulp.src('./source/' + oldFileName + '.html')
-        .pipe(inject.replace('<body id="' + arg.from.toCamelCase() + '">', '<body id="' + arg.to.toCamelCase() + '">'))
+    // rename goTo refs in all html files
+    gulp.src('./source/*.html')
         .pipe(inject.replace('goTo-' + oldMethodName, 'goTo-' + newMethodName))
-        .pipe(rename(newFileName + '.html'))
         .pipe(gulp.dest('./source/'))
         .on('end', function() {
-            gulp.src('./source/' + oldFileName + '.html', {read: false}).pipe(clean());
+
+            // update classname + goTo in HTML and rename HTML
+            gulp.src('./source/' + oldFileName + '.html')
+                .pipe(inject.replace('<body id="' + arg.from.toCamelCase() + '">', '<body id="' + arg.to.toCamelCase() + '">'))
+                .pipe(rename(newFileName + '.html'))
+                .pipe(gulp.dest('./source/'))
+                .on('end', function() {
+                    gulp.src('./source/' + oldFileName + '.html', {read: false}).pipe(clean()); //ToDo: this line could be error
+                });
         });
 
     // update goTo in NAV
@@ -470,11 +476,6 @@ function renameKeymessage(cb) {
                     gulp.src('./source/previews/' + oldFileName, {read: false}).pipe(clean());
                 });
         });
-
-    // rename goTo refs in all html files
-    gulp.src('./source/*.html')
-        .pipe(inject.replace('goTo-' + oldMethodName, 'goTo-' + newMethodName))
-        .pipe(gulp.dest('./source/'));
 
     cb();
 }
