@@ -58,7 +58,7 @@ $(function() {
                 if (pageName === '.goTo-' + items[i].replace(/-/g, ' ').toCamelCase()) {
 
                     prevMenuItem = (i>2) ? items[i-1].replace(/ /g, '-') : '';
-                    nextMenuItem = (i<items.length) ? items[i+1].replace(/ /g, '-') : '';
+                    nextMenuItem = (i<items.length-1) ? items[i+1].replace(/ /g, '-') : '';
                 }
             }
 
