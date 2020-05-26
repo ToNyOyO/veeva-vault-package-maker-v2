@@ -52,6 +52,7 @@ $(function() {
                 items.push(key);
             });
 
+            // exclude 0/1 for pres and shared res
             for (var i=2; i<items.length; i++) {
 
                 if (pageName === '.goTo-' + items[i].replace(/-/g, ' ').toCamelCase()) {
