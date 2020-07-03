@@ -120,59 +120,7 @@ function setup(cb) {
  */
 function keymessagev2(cb) {
 
-    let error = false;
-
-    if (!('presentationName' in config) || config.presentationName === '') {
-        console.log("\x1b[31m%s\x1b[0m", "config requires 'presentationName'");
-        error = true;
-    }
-    if (!('forEngage' in config) || config.forEngage === '') {
-        console.log("\x1b[31m%s\x1b[0m", "config requires 'forEngage'");
-        error = true;
-    }
-    if (!('prefix' in config) || config.prefix === '') {
-        console.log("\x1b[31m%s\x1b[0m", "config requires 'prefix'");
-        error = true;
-    }
-    if (!('externalId' in config) || config.externalId === '') {
-        console.log("\x1b[31m%s\x1b[0m", "config requires 'externalId'");
-        error = true;
-    }
-    if (!('presentationStartDate' in config)) {
-        console.log("\x1b[31m%s\x1b[0m", "config requires 'presentationStartDate'");
-        error = true;
-    }
-    if (!('presentationEndDate' in config)) {
-        console.log("\x1b[31m%s\x1b[0m", "config requires 'presentationEndDate'");
-        error = true;
-    }
-    if (!('productName' in config) || config.productName === '') {
-        console.log("\x1b[31m%s\x1b[0m", "config requires 'productName'");
-        error = true;
-    }
-    if (!('countryName' in config) || config.countryName === '') {
-        console.log("\x1b[31m%s\x1b[0m", "config requires 'countryName'");
-        error = true;
-    }
-    if (!('countryTPI' in config) || config.countryTPI === '') {
-        console.log("\x1b[31m%s\x1b[0m", "config requires 'countryName'");
-        error = true;
-    }
-    if (!('language' in config) || config.language === '') {
-        console.log("\x1b[31m%s\x1b[0m", "config requires 'countryName'");
-        error = true;
-    }
-    if (!('sharedResourceExternalId' in config) || config.sharedResourceExternalId === '') {
-        console.log("\x1b[31m%s\x1b[0m", "config requires 'sharedResourceExternalId'");
-        error = true;
-    }
-
-    if (arg.new === undefined) {
-        console.log("\x1b[31m%s\x1b[0m", 'EXAMPLE: > gulp keymessage --new "Key message name"');
-        error = true;
-    }
-
-    if (error) {
+    if (checkConfig(config, true)) {
         cb();
         return;
     }
@@ -292,6 +240,77 @@ function keymessagev2(cb) {
 
         cb();
     }, 500);
+}
+
+
+/**********************************************************************************************************
+ * regen key messages using...
+ *
+ *    > gulp regen
+ *
+ */
+function regenerateKeyMessages(cb) {
+
+    if (checkConfig(config, false)) {
+        cb();
+        return;
+    }
+
+    //let newFileName = arg.new.replace(/ /g, "-");
+    let presFileName = config.presentationName.replace(/ /g, "-");
+    let sharedFileName = presFileName + '-shared-resource';
+    let presSharedName = config.presentationName;
+    let kmDataPres = {}, kmDataShared = {}, kmData = {};
+
+    // create key message config file
+    kmDataPres = templateKMdata('Presentation', '', '',
+        config.prefix, presSharedName, config.externalId,
+        config.sharedResourceExternalId, config.productName,
+        config.countryName, '', config.forEngage, config.countryTPI, config.language);
+
+    //  - create the json file
+    jsonfile.writeFile('./keymessages/' + presFileName + '.json', kmDataPres, { spaces: 4, EOL: '\r\n' }, function (err) {
+        if (err) console.error(err);
+    });
+
+    // create key message config file
+    kmDataShared = templateKMdata('Shared', '', '',
+        config.prefix, presSharedName + ' shared resource', config.externalId,
+        config.sharedResourceExternalId, config.productName,
+        config.countryName, sharedFileName, config.forEngage, config.countryTPI, config.language);
+
+    //  - create the json file
+    jsonfile.writeFile('./keymessages/' + sharedFileName + '.json', kmDataShared, { spaces: 4, EOL: '\r\n' }, function (err) {
+        if (err) console.error(err);
+    });
+
+
+    let loadedKMs = require('./keymessages.json');
+
+    setTimeout(function() {
+        let count = 0;
+        for (const A of Object.entries(loadedKMs)) {
+            let km = A[0];
+
+            if (count >= 2) {
+                let newFileName = km.replace(/ /g, "-");
+
+                // create key message config file
+                kmData = templateKMdata('Slide', '', '',
+                    config.prefix, km, config.externalId,
+                    config.sharedResourceExternalId, config.productName,
+                    config.countryName, newFileName, config.forEngage, config.countryTPI, config.language);
+
+                //  - create the json file
+                jsonfile.writeFile('./keymessages/' + newFileName + '.json', kmData, { spaces: 4, EOL: '\r\n' }, function (err) {
+                    if (err) console.error(err);
+                });
+            }
+            count++;
+        }
+
+        cb();
+    }, 1000);
 }
 
 
@@ -508,73 +527,80 @@ function build(cb) {
         .pipe(gulp.dest('./build'))
         .on('end', function () {
 
-            gulp.src('./source/shared/less/default.less')
-                .pipe(sourcemaps.init())
-                .pipe(less())
-                .pipe(sourcemaps.write('./'))
-                .pipe(gulp.dest('./source/shared/less'))
+            // copy interactive pathway
+            console.log('> saving out interactive pathway files...');
+            gulp.src('./source/shared/interactive-pathway/*')
+                .pipe(gulp.dest('./build/shared/interactive-pathway'))
                 .on('end', function() {
 
-                    console.log('> saving out min.css...');
-                    gulp.src('./source/shared/less/default.css')
-                        .pipe(cleanCSS({compatibility: 'ie8'}))
-                        .pipe(rename(function (path) {
-                            path.basename = 'default-' + epoch;
-                            path.extname = '.min.css'
-                        }))
-                        .pipe(gulp.dest('./build/shared/css'))
+                    gulp.src('./source/shared/less/default.less')
+                        .pipe(sourcemaps.init())
+                        .pipe(less())
+                        .pipe(sourcemaps.write('./'))
+                        .pipe(gulp.dest('./source/shared/less'))
                         .on('end', function() {
 
-                            console.log('> saving out min.js...');
-                            gulp.src(['./source/shared/js/*.js', '!./source/shared/js/app.js', '!./source/shared/js/*.min.js'])
-                                .pipe(uglify())
-                                .pipe(rename(function (path) {path.extname = '.min.js'}))
-                                .pipe(gulp.dest('./build/shared/js'))
+                            console.log('> saving out min.css...');
+                            gulp.src('./source/shared/less/default.css')
+                                .pipe(cleanCSS({compatibility: 'ie8'}))
+                                .pipe(rename(function (path) {
+                                    path.basename = 'default-' + epoch;
+                                    path.extname = '.min.css'
+                                }))
+                                .pipe(gulp.dest('./build/shared/css'))
                                 .on('end', function() {
 
-                                    console.log('> saving out app.min.js...');
-                                    gulp.src(['./source/shared/js/app.js', '!./source/shared/js/*.min.js'])
+                                    console.log('> saving out min.js...');
+                                    gulp.src(['./source/shared/js/*.js', '!./source/shared/js/app.js', '!./source/shared/js/*.min.js'])
                                         .pipe(uglify())
-                                        .pipe(rename(function (path) {
-                                            path.basename = 'app-' + epoch;
-                                            path.extname = '.min.js'
-                                        }))
+                                        .pipe(rename(function (path) {path.extname = '.min.js'}))
                                         .pipe(gulp.dest('./build/shared/js'))
                                         .on('end', function() {
 
-                                            console.log('> copying other min.js files...');
-                                            // also copy any .min.js files from source
-                                            gulp.src('./source/shared/js/*.min.js')
+                                            console.log('> saving out app.min.js...');
+                                            gulp.src(['./source/shared/js/app.js', '!./source/shared/js/*.min.js'])
+                                                .pipe(uglify())
+                                                .pipe(rename(function (path) {
+                                                    path.basename = 'app-' + epoch;
+                                                    path.extname = '.min.js'
+                                                }))
                                                 .pipe(gulp.dest('./build/shared/js'))
                                                 .on('end', function() {
 
-                                                    console.log('> copying fonts...');
-                                                    // copy fonts
-                                                    gulp.src('./source/shared/fonts/**')
-                                                        .pipe(gulp.dest('./build/shared/fonts'))
+                                                    console.log('> copying other min.js files...');
+                                                    // also copy any .min.js files from source
+                                                    gulp.src('./source/shared/js/*.min.js')
+                                                        .pipe(gulp.dest('./build/shared/js'))
                                                         .on('end', function() {
 
-                                                            console.log('> copying images...');
-                                                            // copy images
-                                                            gulp.src('./source/shared/imgs/**')
-                                                                .pipe(gulp.dest('./build/shared/imgs'))
+                                                            console.log('> copying fonts...');
+                                                            // copy fonts
+                                                            gulp.src('./source/shared/fonts/**')
+                                                                .pipe(gulp.dest('./build/shared/fonts'))
                                                                 .on('end', function() {
 
-                                                                    console.log('> inserting css/js into html files and copying...');
-
-                                                                    // insert JS link into app.js
-                                                                    let nav = fs.readFileSync('./source/partials/nav.html', 'utf8');
-                                                                    nav = nav.replace(/<!-- NEW ITEM -->/g, '');
-
-                                                                    // copy html files
-                                                                    gulp.src('./source/*.html')
-                                                                        .pipe(inject.replace('<!-- INSERT CSS HERE  -->', '<link rel="stylesheet" href="./shared/css/default-' + epoch + '.min.css">'))
-                                                                        .pipe(inject.replace('<!-- INSERT JS HERE  -->', '<script src="./shared/js/app-' + epoch + '.min.js"></script>'))
-                                                                        .pipe(inject.replace('<!-- INSERT NAV HERE  -->', nav + '    '))
-                                                                        .pipe(gulp.dest('./build'))
+                                                                    console.log('> copying images...');
+                                                                    // copy images
+                                                                    gulp.src('./source/shared/imgs/**')
+                                                                        .pipe(gulp.dest('./build/shared/imgs'))
                                                                         .on('end', function() {
 
-                                                                            cb();
+                                                                            console.log('> inserting css/js into html files and copying...');
+
+                                                                            // insert JS link into app.js
+                                                                            let nav = fs.readFileSync('./source/partials/nav.html', 'utf8');
+                                                                            nav = nav.replace(/<!-- NEW ITEM -->/g, '');
+
+                                                                            // copy html files
+                                                                            gulp.src('./source/*.html')
+                                                                                .pipe(inject.replace('<!-- INSERT CSS HERE  -->', '<link rel="stylesheet" href="./shared/css/default-' + epoch + '.min.css">'))
+                                                                                .pipe(inject.replace('<!-- INSERT JS HERE  -->', '<script src="./shared/js/app-' + epoch + '.min.js"></script>'))
+                                                                                .pipe(inject.replace('<!-- INSERT NAV HERE  -->', nav + '    '))
+                                                                                .pipe(gulp.dest('./build'))
+                                                                                .on('end', function() {
+
+                                                                                    cb();
+                                                                                });
                                                                         });
                                                                 });
                                                         });
@@ -649,6 +675,14 @@ function copyFontsToDist (cb) {
 function copyImagesToDist (cb) {
     gulp.src('./source/shared/imgs/**')
         .pipe(gulp.dest('./dist/TMP/shared/imgs'))
+        .on('end', function () {
+            cb();
+        });
+}
+
+function copyInteractivePathwayToDist (cb) {
+    gulp.src('./source/shared/interactive-pathway/*')
+        .pipe(gulp.dest('./dist/TMP/shared/interactive-pathway'))
         .on('end', function () {
             cb();
         });
@@ -738,6 +772,8 @@ exports.setup = setup;
 
 exports.keymessage = keymessagev2;
 
+exports.regen = regenerateKeyMessages;
+
 exports.link = externalLink;
 
 exports.previews = generatePreviews;
@@ -749,6 +785,7 @@ exports.build = build;
 exports.dist = series(
     setAsPublished,
     build,
+    copyInteractivePathwayToDist,
     copyCssToDist,
     copyJsToDist,
     copyFontsToDist,
@@ -768,7 +805,9 @@ function templateKMdata(type, startDate, endDate, prefix, name_v, externalId,
                         sharedResourceExternalId, productName, countryName, newFileName,
                         forEngage, countryTPI, language) {
 
-    let disableActions = '', presTPI = '', presLang = '', title = '', lifecycle = '', mediaType = '', presProductName = '', presCountry = '', presExternalId = '', presExternalId_copy = '', training = '', hidden = '', shared = '', fieldsOnly = '';
+    let iosRes = '', disableActions = '', presTPI = '', presLang = '', title = '', lifecycle = '',
+        mediaType = '', presProductName = '', presCountry = '', presExternalId = '', presExternalId_copy = '',
+        training = '', hidden = '', shared = '', fieldsOnly = '';
 
     prefix = prefix.toUpperCase();
 
@@ -791,6 +830,7 @@ function templateKMdata(type, startDate, endDate, prefix, name_v, externalId,
         newFileName = newFileName + ".zip";
         mediaType = 'HTML';
         title = prefix + " - " + name_v;
+        iosRes = 'Scale To Fit';
         disableActions = 'Zoom';
     }
 
@@ -827,6 +867,7 @@ function templateKMdata(type, startDate, endDate, prefix, name_v, externalId,
         "slide.crm_media_type__v" : mediaType,
         "slide.related_sub_pres__v" : "",
         "slide.related_shared_resource__v" : sharedResourceExternalId,
+        "slide.ios_resolution__v": iosRes,
         "slide.crm_disable_actions__v" : disableActions,
         "slide.product__v.name__v" : productName,
         "slide.country__v.name__v" : countryName,
@@ -837,6 +878,63 @@ function templateKMdata(type, startDate, endDate, prefix, name_v, externalId,
         "slide.clm_content__v" : "TRUE",
         "slide.crm_shared_resource__v" : shared
     }
+}
+
+// run basic error check on config file before processing
+function checkConfig(config, newKM) {
+    let error = false;
+
+    if (!('presentationName' in config) || config.presentationName === '') {
+        console.log("\x1b[31m%s\x1b[0m", "config requires 'presentationName'");
+        error = true;
+    }
+    if (!('forEngage' in config) || config.forEngage === '') {
+        console.log("\x1b[31m%s\x1b[0m", "config requires 'forEngage'");
+        error = true;
+    }
+    if (!('prefix' in config) || config.prefix === '') {
+        console.log("\x1b[31m%s\x1b[0m", "config requires 'prefix'");
+        error = true;
+    }
+    if (!('externalId' in config) || config.externalId === '') {
+        console.log("\x1b[31m%s\x1b[0m", "config requires 'externalId'");
+        error = true;
+    }
+    if (!('presentationStartDate' in config)) {
+        console.log("\x1b[31m%s\x1b[0m", "config requires 'presentationStartDate'");
+        error = true;
+    }
+    if (!('presentationEndDate' in config)) {
+        console.log("\x1b[31m%s\x1b[0m", "config requires 'presentationEndDate'");
+        error = true;
+    }
+    if (!('productName' in config) || config.productName === '') {
+        console.log("\x1b[31m%s\x1b[0m", "config requires 'productName'");
+        error = true;
+    }
+    if (!('countryName' in config) || config.countryName === '') {
+        console.log("\x1b[31m%s\x1b[0m", "config requires 'countryName'");
+        error = true;
+    }
+    if (!('countryTPI' in config) || config.countryTPI === '') {
+        console.log("\x1b[31m%s\x1b[0m", "config requires 'countryName'");
+        error = true;
+    }
+    if (!('language' in config) || config.language === '') {
+        console.log("\x1b[31m%s\x1b[0m", "config requires 'countryName'");
+        error = true;
+    }
+    if (!('sharedResourceExternalId' in config) || config.sharedResourceExternalId === '') {
+        console.log("\x1b[31m%s\x1b[0m", "config requires 'sharedResourceExternalId'");
+        error = true;
+    }
+
+    if (newKM && arg.new === undefined) {
+        console.log("\x1b[31m%s\x1b[0m", 'EXAMPLE: > gulp keymessage --new "Key message name"');
+        error = true;
+    }
+
+    return error;
 }
 
 // convert string to camelcase
