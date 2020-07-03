@@ -20,13 +20,6 @@ If there's something I need to do more than once, and it's a faff to do, I'll pr
 >
 >It will not make your bed either. 
 
-## Upcoming changes...
-
-##### Regenerate Key Message JSON 
-
-- Regenerate Key Message JSON files after amending the config.json file
-- Proposed task: `gulp keymessage --regen ["Key message name"] [--all]`
-
 ## Quick start...
 - Copy the files into a new project folder 
 - Run `npm install`
@@ -59,12 +52,15 @@ Fill in the required information in the new `config.json` or **nothing will work
 ```
 {
     "presentationName": "",
+    "forEngage": "TRUE",
     "prefix": "",
     "externalId": "",
     "presentationStartDate": "",
     "presentationEndDate": "",
     "productName": "",
-    "countryName": "",
+    "countryName": "United Kingdom",
+    "countryTPI": "UK",
+    "language": "English",
     "sharedResourceExternalId": ""
 }
 ```
@@ -118,7 +114,7 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 UTILITY TASKS
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-$ gulp previews                                 Process screen grabs into poster/thumbnail images
+$ gulp previews                               Process screen grabs into poster/thumbnail images
 
 $ gulp link --km "key-message-name.zip" 
             --method "nameOfMethod" 
@@ -126,6 +122,8 @@ $ gulp link --km "key-message-name.zip"
 
 $ gulp rename --from "Old name" 
               --to "New name"                 Rename a Key Message and associated files
+
+$ gulp regen                                  Regenerate the Key Message json files
 ```
 
 ### In depth
@@ -185,6 +183,11 @@ gulp rename --from "Old key message" --to "New key message"
 - Changes CSS page ID in the LESS and HTML files
 - Updates the `.goTo-` in `./source/shared/js/app.js` and in the Key Message HTML file
 - Renames the `./source/previews` folder for this Key Message
+
+```
+gulp regen
+```
+- Regenerates the Key Message json files in `./keymessages`
 
 ## 
 
