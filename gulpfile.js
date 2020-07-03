@@ -126,6 +126,10 @@ function keymessagev2(cb) {
         console.log("\x1b[31m%s\x1b[0m", "config requires 'presentationName'");
         error = true;
     }
+    if (!('forEngage' in config) || config.forEngage === '') {
+        console.log("\x1b[31m%s\x1b[0m", "config requires 'forEngage'");
+        error = true;
+    }
     if (!('prefix' in config) || config.prefix === '') {
         console.log("\x1b[31m%s\x1b[0m", "config requires 'prefix'");
         error = true;
@@ -147,6 +151,14 @@ function keymessagev2(cb) {
         error = true;
     }
     if (!('countryName' in config) || config.countryName === '') {
+        console.log("\x1b[31m%s\x1b[0m", "config requires 'countryName'");
+        error = true;
+    }
+    if (!('countryTPI' in config) || config.countryTPI === '') {
+        console.log("\x1b[31m%s\x1b[0m", "config requires 'countryName'");
+        error = true;
+    }
+    if (!('language' in config) || config.language === '') {
         console.log("\x1b[31m%s\x1b[0m", "config requires 'countryName'");
         error = true;
     }
@@ -192,13 +204,13 @@ function keymessagev2(cb) {
             kmDataPres = templateKMdata('Presentation', '', '',
                 config.prefix, presSharedName, config.externalId,
                 config.sharedResourceExternalId, config.productName,
-                config.countryName, '');
+                config.countryName, '', config.forEngage, config.countryTPI, config.language);
 
             // create key message config file
             kmDataShared = templateKMdata('Shared', '', '',
                 config.prefix, presSharedName + ' shared resource', config.externalId,
                 config.sharedResourceExternalId, config.productName,
-                config.countryName, sharedFileName);
+                config.countryName, sharedFileName, config.forEngage, config.countryTPI, config.language);
 
             addPresShared = true;
         }
@@ -219,7 +231,7 @@ function keymessagev2(cb) {
 
             // copy new template
             gulp.src('./templates/template-keymessage.html')
-                .pipe(inject.replace('ADD PAGE ID HERE', arg.new.toCamelCase()))
+                .pipe(inject.replace('ADD PAGE ID HERE', arg.new.replace(/-/g, " ").toCamelCase()))
                 .pipe(rename(newFileName + '.html'))
                 .pipe(gulp.dest('./source/'));
 
@@ -230,7 +242,7 @@ function keymessagev2(cb) {
             // add new less template
             gulp.src('./templates/shared/less/keymessages/less-template-file.less')
                 .pipe(inject.replace('PAGE NAME', arg.new))
-                .pipe(inject.replace('PageName', arg.new.toCamelCase()))
+                .pipe(inject.replace('PageName', arg.new.replace(/-/g, " ").toCamelCase()))
                 .pipe(rename(newFileName + '.less'))
                 .pipe(gulp.dest('./source/shared/less/keymessages/'));
 
@@ -258,7 +270,7 @@ function keymessagev2(cb) {
             kmData = templateKMdata('Slide', '', '',
                 config.prefix, arg.new, config.externalId,
                 config.sharedResourceExternalId, config.productName,
-                config.countryName, newFileName);
+                config.countryName, newFileName, config.forEngage, config.countryTPI, config.language);
 
             setTimeout(function() {
                 //  - create the json file
@@ -752,20 +764,24 @@ exports.dist = series(
 
 
 // template data for key message file
-function templateKMdata(type, startDate, endDate, prefix, name_v, externalId, sharedResourceExternalId, productName, countryName, newFileName) {
+function templateKMdata(type, startDate, endDate, prefix, name_v, externalId,
+                        sharedResourceExternalId, productName, countryName, newFileName,
+                        forEngage, countryTPI, language) {
 
-    let lifecycle = '', mediaType = '', presProductName = '', presCountry = '', presExternalId = '', training = '', hidden = '', shared = '', fieldsOnly = '';
+    let disableActions = '', presTPI = '', presLang = '', title = '', lifecycle = '', mediaType = '', presProductName = '', presCountry = '', presExternalId = '', presExternalId_copy = '', training = '', hidden = '', shared = '', fieldsOnly = '';
 
     prefix = prefix.toUpperCase();
 
     if (type === 'Presentation') {
         presProductName = productName;
         presCountry = countryName;
-        presExternalId = prefix + 'pres-' + externalId;
+        presTPI = countryTPI;
+        presLang = language;
+        presExternalId = presExternalId_copy = prefix + 'pres-' + externalId;
         lifecycle = 'Binder Lifecycle';
         training = hidden = fieldsOnly = 'FALSE';
 
-        productName = countryName = externalId = sharedResourceExternalId = newFileName = '';
+        countryTPI = language = productName = countryName = externalId = sharedResourceExternalId = newFileName = '';
     }
 
     if (type === 'Slide') {
@@ -774,6 +790,8 @@ function templateKMdata(type, startDate, endDate, prefix, name_v, externalId, sh
         sharedResourceExternalId = prefix + 'sr-' + sharedResourceExternalId;
         newFileName = newFileName + ".zip";
         mediaType = 'HTML';
+        title = prefix + " - " + name_v;
+        disableActions = 'Zoom';
     }
 
     if (type === 'Shared') {
@@ -791,6 +809,7 @@ function templateKMdata(type, startDate, endDate, prefix, name_v, externalId, sh
         "Create Presentation" : "FALSE",
         "Type" : type,
         "lifecycle__v" : lifecycle,
+        "pres.crm_presentation_id__v": presExternalId_copy,
         "Presentation Link" : externalId,
         "Fields Only" : fieldsOnly,
         "pres.crm_training__v" : training,
@@ -798,6 +817,9 @@ function templateKMdata(type, startDate, endDate, prefix, name_v, externalId, sh
         "pres.product__v.name__v" : presProductName,
         "pres.country__v.name__v" : presCountry,
         "pres.clm_content__v" : "TRUE",
+        "pres.language__v": presLang,
+        "pres.country_tpi__c": presTPI,
+        "pres.engage_content__v": forEngage,
         "pres.crm_start_date__v" : startDate,
         "pres.crm_end_date__v" : endDate,
         "slide.name__v" : "",
@@ -805,10 +827,13 @@ function templateKMdata(type, startDate, endDate, prefix, name_v, externalId, sh
         "slide.crm_media_type__v" : mediaType,
         "slide.related_sub_pres__v" : "",
         "slide.related_shared_resource__v" : sharedResourceExternalId,
-        "slide.crm_disable_actions__v" : "",
+        "slide.crm_disable_actions__v" : disableActions,
         "slide.product__v.name__v" : productName,
         "slide.country__v.name__v" : countryName,
+        "slide.language__v": language,
+        "slide.country_tpi__c": countryTPI,
         "slide.filename" : newFileName,
+        "slide.title__v": title,
         "slide.clm_content__v" : "TRUE",
         "slide.crm_shared_resource__v" : shared
     }
