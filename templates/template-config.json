@@ -1,10 +1,13 @@
 {
     "presentationName": "",
+    "forEngage": "TRUE",
     "prefix": "",
     "externalId": "",
     "presentationStartDate": "",
     "presentationEndDate": "",
     "productName": "",
-    "countryName": "",
+    "countryName": "United Kingdom",
+    "countryTPI": "UK",
+    "language": "English",
     "sharedResourceExternalId": ""
 }
