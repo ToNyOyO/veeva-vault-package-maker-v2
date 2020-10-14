@@ -1,7 +1,7 @@
-$(function() {
+// PUBLISH
+var isPublished = false;
 
-    // PUBLISH
-    var isPublished = false;
+$(function() {
 
     // links
     var pagesLink = $('.pages-link');
@@ -19,23 +19,12 @@ $(function() {
 
 
     /******************************************************************************
-     * Nav highlighting
-     */
-
-    var pageName = '.goTo-' + $(location).attr('href').split('/').pop().split('.').shift().replace(/-/g, ' ').toCamelCase();
-
-    $('nav').find(pageName).each(function (e) {
-        $(this).addClass('active');
-        $(this).parent().parent().addClass('active');
-        $(this).parent().parent().siblings('a').first().addClass('active');
-    });
-    
-    
-    /******************************************************************************
      * Cheeky page flip
      */
 
     if (!isPublished) {
+        var pageName = '.goTo-' + $(location).attr('href').split('/').pop().split('.').shift().replace(/-/g, ' ').toCamelCase();
+
         var l = $('<input type="button" class="secret-button" id="secret-left" value="&lt;" />');
         var r = $('<input type="button" class="secret-button" id="secret-right" value="&gt;" />');
 
@@ -58,7 +47,7 @@ $(function() {
                 if (pageName === '.goTo-' + items[i].replace(/-/g, ' ').toCamelCase()) {
 
                     prevMenuItem = (i>2) ? items[i-1].replace(/ /g, '-') : '';
-                    nextMenuItem = (i<items.length-1) ? items[i+1].replace(/ /g, '-') : '';
+                    nextMenuItem = (i<=items.length-1) ? items[i+1].replace(/ /g, '-') : '';
                 }
             }
 
@@ -173,3 +162,34 @@ String.prototype.toCamelCase = function() {
         .replace(/\^(.)/g, function($1) { return $1.toLowerCase(); });
 }
 
+/******************************************************************************
+ * Nav highlighting
+ * String '.goTo-CamelCasePageName'
+ */
+function highlightNav (pageName) {
+    $('nav').find(pageName).each(function (e) {
+        $(this).addClass('active');
+        $(this).parent().parent().addClass('active');
+        $(this).parent().parent().siblings('a').first().addClass('active');
+
+        /*if (!isPublished) {
+            // add section page count to footer
+            if (!$(this).hasClass('dummy-page')) {
+                var pageCount = ($(this).parent().index() + 1) + ' of ' + ($(this).parent().siblings('li').length + 1);
+            }
+        }*/
+
+        // add section page count to footer
+        if (!$(this).hasClass('dummy-page')) {
+            var pageCount = '';
+            var active = '';
+
+            for (var i = 0; i < $(this).parent().siblings('li').length + 1; i++) {
+                active = ($(this).parent().index() === i) ? ' class="active" ' : '' ;
+                pageCount += '<div' + active + '></div>';
+            }
+
+            $('footer').append('<div id="pageCount">' + pageCount + '</div>');
+        }
+    });
+}
